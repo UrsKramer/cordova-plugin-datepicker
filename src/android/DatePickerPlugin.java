@@ -28,6 +28,7 @@ import android.view.KeyEvent;
 import android.widget.DatePicker;
 import android.widget.DatePicker.OnDateChangedListener;
 import android.widget.TimePicker;
+import android.text.format.DateFormat;
 
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
@@ -35,9 +36,73 @@ import org.apache.cordova.CordovaPlugin;
 
 import android.os.Build;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
+import android.app.TimePickerDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.widget.NumberPicker;
+import android.widget.TimePicker;
+
+
 @SuppressWarnings("deprecation")
 @SuppressLint("NewApi")
 public class DatePickerPlugin extends CordovaPlugin {
+
+	class CustomTimePickerDialog extends TimePickerDialog {
+
+	    private TimePicker timePicker;
+	    private final OnTimeSetListener callback;
+		private int minuteInterval;
+
+	    public CustomTimePickerDialog(Context context, OnTimeSetListener callBack,
+	            int hourOfDay, int minute, boolean is24HourView, int minuteInterval) {
+	        super(context, TimePickerDialog.THEME_HOLO_LIGHT, callBack, hourOfDay, minute / minuteInterval,
+	                is24HourView);
+			this.minuteInterval = minuteInterval;
+	        this.callback = callBack;
+	    }
+
+	    @Override
+	    public void onClick(DialogInterface dialog, int which) {
+	        if (callback != null && timePicker != null) {
+	            timePicker.clearFocus();
+	            callback.onTimeSet(timePicker, timePicker.getCurrentHour(),
+	                    timePicker.getCurrentMinute() * minuteInterval);
+	        }
+	    }
+
+	    @Override
+	    protected void onStop() {
+	    }
+
+	    @Override
+	    public void onAttachedToWindow() {
+	        super.onAttachedToWindow();
+	        try {
+	            Class<?> classForid = Class.forName("com.android.internal.R$id");
+	            Field timePickerField = classForid.getField("timePicker");
+	            this.timePicker = (TimePicker) findViewById(timePickerField
+	                    .getInt(null));
+	            Field field = classForid.getField("minute");
+
+	            NumberPicker mMinuteSpinner = (NumberPicker) timePicker
+	                    .findViewById(field.getInt(null));
+	            mMinuteSpinner.setMinValue(0);
+	            mMinuteSpinner.setMaxValue((60 / minuteInterval) - 1);
+	            List<String> displayedValues = new ArrayList<String>();
+	            for (int i = 0; i < 60; i += minuteInterval) {
+	                displayedValues.add(String.format("%02d", i));
+	            }
+	            mMinuteSpinner.setDisplayedValues(displayedValues
+	                    .toArray(new String[0]));
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+	    }
+	}
 
 	private static final String ACTION_DATE = "date";
 	private static final String ACTION_TIME = "time";
@@ -64,7 +129,7 @@ public class DatePickerPlugin extends CordovaPlugin {
 	
 		long minDateLong = 0, maxDateLong = 0;
 		
-		int month = -1, day = -1, year = -1, hour = -1, min = -1;
+		int month = -1, day = -1, year = -1, hour = -1, min = -1, minInterval = 1;
 		try {
 			JSONObject obj = data.getJSONObject(0);
 			action = obj.getString("mode");
@@ -80,12 +145,18 @@ public class DatePickerPlugin extends CordovaPlugin {
 
 			minDateLong = obj.getLong("minDate");
 			maxDateLong = obj.getLong("maxDate");
-
-	
-
+			
 		} catch (JSONException e) {
 			e.printStackTrace();
 		}
+
+		try {			
+			JSONObject obj = data.getJSONObject(0);
+			minInterval = (int) obj.getLong("minuteInterval");
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+
 
 		// By default initalize these fields to 'now'
 		final int mYear = year == -1 ? c.get(Calendar.YEAR) : year;
@@ -97,7 +168,7 @@ public class DatePickerPlugin extends CordovaPlugin {
 		final long minDate = minDateLong;
 		final long maxDate = maxDateLong;
 		final String clearButtonText = clearText;
-
+		final int minuteInterval = minInterval;
 	
 
 		if (ACTION_TIME.equalsIgnoreCase(action)) {
@@ -105,8 +176,8 @@ public class DatePickerPlugin extends CordovaPlugin {
 				@Override
 				public void run() {
 					final TimeSetListener timeSetListener = new TimeSetListener(datePickerPlugin, callbackContext);
-					final TimePickerDialog timeDialog = new TimePickerDialog(currentCtx, timeSetListener, mHour,
-							mMinutes, false);
+					final CustomTimePickerDialog timeDialog = new CustomTimePickerDialog(currentCtx, timeSetListener, mHour,
+							mMinutes, DateFormat.is24HourFormat(cordova.getActivity()), minuteInterval);
 					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
 						timeDialog.setCancelable(true);
 						timeDialog.setCanceledOnTouchOutside(false);

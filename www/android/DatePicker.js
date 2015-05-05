@@ -15,50 +15,51 @@ function DatePicker() {
  */
 DatePicker.prototype.show = function(options, cb) {
 
-	if (options.date) {
-		options.date = (options.date.getMonth() + 1) + "/" +
-					   (options.date.getDate()) + "/" +
-					   (options.date.getFullYear()) + "/" +
-					   (options.date.getHours()) + "/" +
-					   (options.date.getMinutes());
-	}
+  if (options.date) {
+    options.date = (options.date.getMonth() + 1) + "/" +
+    (options.date.getDate()) + "/" +
+    (options.date.getFullYear()) + "/" +
+    (options.date.getHours()) + "/" +
+    (options.date.getMinutes());
+  }
 
-	var defaults = {
-		mode : 'date',
-		date : '',
-		minDate: 0,
-		maxDate: 0,
-		clearText: 'Clear'
-	};
+  var defaults = {
+    mode : 'date',
+    date : '',
+    minDate: 0,
+    maxDate: 0,
+    clearText: 'Clear',
+    minuteInterval: 1
+  };
 
-	for (var key in defaults) {
-		if (typeof options[key] !== "undefined") {
-			defaults[key] = options[key];
-		}
-	}
+  for (var key in defaults) {
+    if (typeof options[key] !== "undefined") {
+      defaults[key] = options[key];
+    }
+  }
 
-	//this._callback = cb;
+  //this._callback = cb;
 
-	var callback = function(message) {
-		if(message == -1){
-			cb(message);
-		} else {
-			var timestamp = Date.parse(message);
-			if(isNaN(timestamp) == false) {
-				cb(new Date(message));
-			}
-	        else {
-	            cb();
-	        }
-    	}
-	}
+  var callback = function(message) {
+    if(message == -1){
+      cb(message);
+    } else {
+      var timestamp = Date.parse(message);
+      if(isNaN(timestamp) == false) {
+        cb(new Date(message));
+      }
+      else {
+        cb();
+      }
+    }
+  }
 
-	cordova.exec(callback,
-		null,
-		"DatePickerPlugin",
-		defaults.mode,
-		[defaults]
-	);
+  cordova.exec(callback,
+    null,
+    "DatePickerPlugin",
+    defaults.mode,
+    [defaults]
+  );
 };
 
 var datePicker = new DatePicker();
@@ -66,8 +67,8 @@ module.exports = datePicker;
 
 // Make plugin work under window.plugins
 if (!window.plugins) {
-    window.plugins = {};
+  window.plugins = {};
 }
 if (!window.plugins.datePicker) {
-    window.plugins.datePicker = datePicker;
+  window.plugins.datePicker = datePicker;
 }
